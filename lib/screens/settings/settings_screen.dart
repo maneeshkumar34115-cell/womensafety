@@ -217,7 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const Icon(Icons.shield, color: AppColors.primary, size: 28),
                   const SizedBox(height: 8),
                   Text(
-                    'SafeGuardHer',
+                    'RAKSHAHER',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,

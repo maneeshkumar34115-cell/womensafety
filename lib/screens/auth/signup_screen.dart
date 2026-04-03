@@ -131,7 +131,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Join SafeGuardHer for your safety',
+                    'Join RAKSHAHER for your safety',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       color: AppColors.textLight,

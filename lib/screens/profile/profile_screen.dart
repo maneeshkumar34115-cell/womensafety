@@ -280,14 +280,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   _ProfileAction(
                     icon: Icons.info_outline_rounded,
-                    label: 'About Safety First',
+                    label: 'About RAKSHAHER',
                     onTap: () {
                       showAboutDialog(
                         context: context,
-                        applicationName: 'Safety First',
+                        applicationName: 'RAKSHAHER',
                         applicationVersion: '1.0.0',
                         applicationLegalese:
-                            '© 2025 Safety First. All rights reserved.',
+                            '© 2025 RAKSHAHER. All rights reserved.',
                       );
                     },
                   ),

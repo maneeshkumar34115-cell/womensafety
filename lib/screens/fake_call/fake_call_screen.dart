@@ -6,6 +6,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -36,9 +37,16 @@ class _FakeCallScreenState extends State<FakeCallScreen>
   int _callDuration = 0;
   Timer? _ringTimer;
   Timer? _callTimer;
-  String _callerName = 'Papa';
-  String _callerNumber = '+91 98765 43210';
+  List<Map<String, String>> _contacts = [
+    {'id': '1', 'name': 'Papa', 'phone': '+91 98765 43210'},
+  ];
+  String _selectedContactId = '1';
   String? _selectedVoiceUrl;
+
+  Map<String, String> get _currentContact => _contacts.firstWhere(
+        (c) => c['id'] == _selectedContactId,
+        orElse: () => _contacts.first,
+      );
 
   // Voice recording
   final AudioRecorder _recorder = AudioRecorder();
@@ -102,7 +110,7 @@ class _FakeCallScreenState extends State<FakeCallScreen>
     final delay = _delays[_selectedDelay] ?? 5;
     showAppSnackBar(
       context,
-      'Fake call from "$_callerName" in $_selectedDelay',
+      'Fake call from "${_currentContact['name']}" in $_selectedDelay',
     );
 
     _ringTimer = Timer(Duration(seconds: delay), () {
@@ -276,40 +284,27 @@ class _FakeCallScreenState extends State<FakeCallScreen>
     }
   }
 
-  void _showCallerSetup() {
-    final callerCtrl = TextEditingController(text: _callerName);
-    final phoneCtrl = TextEditingController(text: _callerNumber);
+  void _showAddEditContactDialog({Map<String, String>? contact}) {
+    final isEdit = contact != null;
+    final nameCtrl = TextEditingController(text: isEdit ? contact['name'] : '');
+    final phoneCtrl = TextEditingController(text: isEdit ? contact['phone'] : '');
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          MediaQuery.of(ctx).viewInsets.bottom + 20,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          isEdit ? 'Edit Contact' : 'Add New Contact',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
         ),
-        child: Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Caller Settings',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
             CustomTextField(
               label: 'Caller Name',
               hint: 'Papa',
               prefixIcon: Icons.person,
-              controller: callerCtrl,
+              controller: nameCtrl,
             ),
             const SizedBox(height: 12),
             CustomTextField(
@@ -319,69 +314,177 @@ class _FakeCallScreenState extends State<FakeCallScreen>
               controller: phoneCtrl,
               keyboardType: TextInputType.phone,
             ),
-            const SizedBox(height: 16),
-
-            // Voice selection
-            Text(
-              'Caller Voice (optional)',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (_savedVoices.isEmpty)
-              Text(
-                'No recorded voices. Tap + to record.',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: AppColors.textLight,
-                ),
-              )
-            else
-              ..._savedVoices.map((voice) {
-                final isSelected = _selectedVoiceUrl == voice['storageUrl'];
-                return ListTile(
-                  leading: Icon(
-                    isSelected
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                    color: isSelected ? AppColors.primary : AppColors.textLight,
-                  ),
-                  title: Text(
-                    voice['name'] ?? '',
-                    style: GoogleFonts.poppins(fontSize: 14),
-                  ),
-                  onTap: () {
-                    setState(() => _selectedVoiceUrl = voice['storageUrl']);
-                    Navigator.pop(ctx);
-                    showAppSnackBar(
-                      context,
-                      'Voice "${voice['name']}" selected',
-                    );
-                  },
-                  dense: true,
-                );
-              }),
-
-            const SizedBox(height: 16),
-            GradientButton(
-              text: 'Save Settings',
-              icon: Icons.check_rounded,
-              onPressed: () {
-                setState(() {
-                  _callerName = callerCtrl.text.isNotEmpty
-                      ? callerCtrl.text
-                      : 'Papa';
-                  _callerNumber = phoneCtrl.text.isNotEmpty
-                      ? phoneCtrl.text
-                      : '+91 98765 43210';
-                });
-                Navigator.pop(ctx);
-                showAppSnackBar(context, 'Caller set to "$_callerName"');
-              },
-            ),
           ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.poppins(color: AppColors.textLight)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              if (nameCtrl.text.isEmpty || phoneCtrl.text.isEmpty) return;
+              setState(() {
+                if (isEdit) {
+                  final index = _contacts.indexWhere((c) => c['id'] == contact['id']);
+                  if (index != -1) {
+                    _contacts[index] = {
+                      'id': contact['id']!,
+                      'name': nameCtrl.text,
+                      'phone': phoneCtrl.text,
+                    };
+                  }
+                } else {
+                  final newId = DateTime.now().millisecondsSinceEpoch.toString();
+                  _contacts.add({
+                    'id': newId,
+                    'name': nameCtrl.text,
+                    'phone': phoneCtrl.text,
+                  });
+                  _selectedContactId = newId;
+                }
+              });
+              Navigator.pop(ctx);
+            },
+            child: Text(isEdit ? 'Save' : 'Add', style: GoogleFonts.poppins(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showContactPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            24,
+            20,
+            MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: Column(
+             mainAxisSize: MainAxisSize.min,
+             crossAxisAlignment: CrossAxisAlignment.start,
+             children: [
+               Row(
+                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                 children: [
+                   Text(
+                     'Select Contact',
+                     style: GoogleFonts.poppins(
+                       fontSize: 18,
+                       fontWeight: FontWeight.bold,
+                     ),
+                   ),
+                 ],
+               ),
+               const SizedBox(height: 12),
+               ..._contacts.map((contact) {
+                 final isSelected = _selectedContactId == contact['id'];
+                 return Container(
+                   margin: const EdgeInsets.only(bottom: 8),
+                   decoration: BoxDecoration(
+                     color: isSelected ? AppColors.primary.withValues(alpha: 0.05) : Colors.transparent,
+                     borderRadius: BorderRadius.circular(12),
+                     border: isSelected ? Border.all(color: AppColors.primary.withValues(alpha: 0.3)) : null,
+                   ),
+                   child: ListTile(
+                     leading: const CircleAvatar(
+                       backgroundColor: Color(0xFFFBE4E4),
+                       child: Text('🧑', style: TextStyle(fontSize: 20)),
+                     ),
+                     title: Text(contact['name']!, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                     subtitle: Text(contact['phone']!, style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textLight)),
+                     trailing: Row(
+                       mainAxisSize: MainAxisSize.min,
+                       children: [
+                         IconButton(
+                           icon: const Icon(Icons.edit_rounded, color: AppColors.textLight, size: 20),
+                           onPressed: () {
+                             Navigator.pop(ctx);
+                             _showAddEditContactDialog(contact: contact);
+                           },
+                         ),
+                         IconButton(
+                           icon: const Icon(Icons.delete_rounded, color: AppColors.danger, size: 20),
+                           onPressed: () {
+                             if (_contacts.length <= 1) {
+                               showAppSnackBar(context, 'At least 1 contact must remain', isError: true);
+                               return;
+                             }
+                             setState(() {
+                               _contacts.removeWhere((c) => c['id'] == contact['id']);
+                               if (_selectedContactId == contact['id']) {
+                                 _selectedContactId = _contacts.first['id']!;
+                               }
+                             });
+                             Navigator.pop(ctx);
+                           },
+                         ),
+                       ],
+                     ),
+                     onTap: () {
+                       setState(() => _selectedContactId = contact['id']!);
+                       Navigator.pop(ctx);
+                     },
+                   ),
+                 );
+               }),
+               const Divider(height: 32),
+               Text(
+                 'Caller Voice (optional)',
+                 style: GoogleFonts.poppins(
+                   fontSize: 14,
+                   fontWeight: FontWeight.w500,
+                 ),
+               ),
+               const SizedBox(height: 8),
+               if (_savedVoices.isEmpty)
+                 Text(
+                   'No recorded voices. Tap + to record.',
+                   style: GoogleFonts.poppins(
+                     fontSize: 12,
+                     color: AppColors.textLight,
+                   ),
+                 )
+               else
+                 ..._savedVoices.map((voice) {
+                   final isSelected = _selectedVoiceUrl == voice['storageUrl'];
+                   return ListTile(
+                     leading: Icon(
+                       isSelected
+                           ? Icons.radio_button_checked
+                           : Icons.radio_button_off,
+                       color: isSelected ? AppColors.primary : AppColors.textLight,
+                     ),
+                     title: Text(
+                       voice['name'] ?? '',
+                       style: GoogleFonts.poppins(fontSize: 14),
+                     ),
+                     onTap: () {
+                       setState(() => _selectedVoiceUrl = voice['storageUrl']);
+                       setModalState(() {});
+                       showAppSnackBar(
+                         context,
+                         'Voice "${voice['name']}" selected',
+                       );
+                     },
+                     dense: true,
+                   );
+                 }),
+               const SizedBox(height: 16),
+             ],
+          ),
         ),
       ),
     );
@@ -419,7 +522,7 @@ class _FakeCallScreenState extends State<FakeCallScreen>
               ),
               const SizedBox(height: 24),
               Text(
-                _callerName,
+                _currentContact['name']!,
                 style: GoogleFonts.poppins(
                   fontSize: 28,
                   fontWeight: FontWeight.w600,
@@ -430,7 +533,7 @@ class _FakeCallScreenState extends State<FakeCallScreen>
               Text(
                 _callAnswered
                     ? _formatDuration(_callDuration)
-                    : '$_callerNumber  •  Incoming Call',
+                    : '${_currentContact['phone']!}  •  Incoming Call',
                 style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70),
               ),
               const Spacer(flex: 3),
@@ -580,42 +683,44 @@ class _FakeCallScreenState extends State<FakeCallScreen>
 
             // Caller info
             GestureDetector(
-              onTap: _showCallerSetup,
+              onTap: _showContactPicker,
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       color: Colors.black12,
                       blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 24,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                      child: const Icon(Icons.person, color: AppColors.primary),
+                      backgroundColor: Color(0xFFFBE4E4),
+                      child: Text('🧑', style: TextStyle(fontSize: 24)),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _callerName,
+                            _currentContact['name']!,
                             style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.black87,
                             ),
                           ),
                           Text(
-                            _callerNumber,
+                            _currentContact['phone']!,
                             style: GoogleFonts.poppins(
-                              fontSize: 12,
+                              fontSize: 13,
                               color: AppColors.textLight,
                             ),
                           ),
@@ -632,10 +737,38 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                     ),
                     const Icon(
                       Icons.edit_rounded,
-                      color: AppColors.textLight,
-                      size: 20,
+                      color: Color(0xFFFA6C51),
+                      size: 22,
                     ),
                   ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            GestureDetector(
+              onTap: () => _showAddEditContactDialog(),
+              child: CustomPaint(
+                painter: DashedRectPainter(color: AppColors.primary),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.add, color: AppColors.primary, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Add New Contact',
+                        style: GoogleFonts.poppins(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -798,4 +931,45 @@ class _RecordingSheetState extends State<_RecordingSheet> {
       ),
     );
   }
+}
+
+class DashedRectPainter extends CustomPainter {
+  final Color color;
+
+  DashedRectPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    final RRect rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      const Radius.circular(12),
+    );
+
+    final Path path = Path()..addRRect(rrect);
+    final Path dashPath = Path();
+
+    double dashWidth = 6.0;
+    double dashSpace = 4.0;
+    double distance = 0.0;
+
+    for (var pathMetric in path.computeMetrics()) {
+      while (distance < pathMetric.length) {
+        dashPath.addPath(
+          pathMetric.extractPath(distance, distance + dashWidth),
+          Offset.zero,
+        );
+        distance += dashWidth + dashSpace;
+      }
+      distance = 0.0;
+    }
+    canvas.drawPath(dashPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

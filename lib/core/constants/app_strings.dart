@@ -4,7 +4,7 @@
 library;
 
 class AppStrings {
-  static const String appName = 'SafeGuardHer';
+  static const String appName = 'RAKSHAHER';
   static const String tagline = 'Your Safety, Our Priority';
 
   // Onboarding
