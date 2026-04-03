@@ -19,6 +19,7 @@ import 'services/contacts_service.dart';
 import 'services/sms_service.dart';
 import 'screens/splash/splash_screen.dart';
 import 'package:power_button_plugin/power_button_plugin.dart';
+import 'providers/settings_provider.dart';
 
 Future<void> initializeBackgroundService() async {
   final service = FlutterBackgroundService();
@@ -132,14 +133,19 @@ class SafeGuardHerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => LocationService()),
         ChangeNotifierProvider(create: (_) => ContactsService()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
       ],
-      child: MaterialApp(
-        title: AppStrings.appName,
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.light,
-        home: const SplashScreen(),
+      child: Consumer<SettingsProvider>(
+        builder: (context, settings, _) {
+          return MaterialApp(
+            title: AppStrings.appName,
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            home: const SplashScreen(),
+          );
+        },
       ),
     );
   }

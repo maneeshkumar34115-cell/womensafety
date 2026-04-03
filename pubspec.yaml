@@ -78,6 +78,7 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
+    - assets/sounds/
 
 dependency_overrides:
   vector_math: ^2.3.0
