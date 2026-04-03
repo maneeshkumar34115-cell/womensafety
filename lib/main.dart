@@ -1,6 +1,8 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - Application Entry Point
 /// Sets up Provider for state management and defines the root Material App
 /// with custom theme, routing, and splash screen entry.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

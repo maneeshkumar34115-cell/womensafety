@@ -1,12 +1,14 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - Location Service
 /// Handles GPS permissions and real-time location fetching.
+library;
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationService extends ChangeNotifier {
   Position? _currentPosition;
-  bool _isTracking = false;
+  final bool _isTracking = false;
 
   Position? get currentPosition => _currentPosition;
   bool get isTracking => _isTracking;

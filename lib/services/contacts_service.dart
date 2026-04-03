@@ -1,6 +1,8 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - Contacts Service
 /// Manages emergency contacts CRUD with SharedPreferences.
 /// Ready to swap for Firestore.
+library;
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';

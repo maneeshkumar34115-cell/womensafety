@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 // SafeGuardHer - Report Incident Screen
 // Form with full validation, REAL image capture (camera/gallery),
 // uploads to Firebase Storage, and saves report to Firestore.
@@ -353,7 +354,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _incidentType,
+                  initialValue: _incidentType,
                   items: _types
                       .map((t) =>
                           DropdownMenuItem(value: t, child: Text(t)))

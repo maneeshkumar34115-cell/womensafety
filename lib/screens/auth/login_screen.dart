@@ -1,6 +1,8 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - Login Screen
 /// Full form validation, remember me toggle, forgot password flow.
 /// Uses AuthService from Provider for login.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';

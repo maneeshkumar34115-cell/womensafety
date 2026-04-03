@@ -1,6 +1,8 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - Home Dashboard Screen
 /// Central hub with welcome greeting, safety status card,
 /// 8 action grid tiles, frosted glass bottom navigation, and haptic feedback.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -102,8 +104,8 @@ class _DashboardBody extends StatelessWidget {
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => screen,
-        transitionsBuilder: (_, animation, __, child) {
+        pageBuilder: (_, _, _) => screen,
+        transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(

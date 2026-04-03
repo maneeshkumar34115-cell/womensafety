@@ -26,14 +26,14 @@ dependencies:
   geolocator: ^13.0.2
   geocoding: ^3.0.0
   google_maps_flutter: ^2.10.0
-  flutter_map: ^7.0.2
+  flutter_map: any
   latlong2: ^0.9.1
 
   # Permissions
   permission_handler: ^11.4.0
 
-  # SMS (works without internet)
-  telephony: ^0.2.0
+  # Phone calls replacing telephony
+  flutter_phone_direct_caller: ^2.1.1
 
   # Background Service
   flutter_background_service: ^5.0.6
@@ -50,8 +50,11 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.2
   shimmer: ^3.0.0
-  smooth_page_indicator: ^1.2.0+3
+  smooth_page_indicator: ^2.0.1
   cached_network_image: ^3.4.1
+  mgrs_dart: ^3.0.0
+  proj4dart: ^3.0.0
+  vector_math: ^2.3.0
   image_picker: ^1.1.2
   flutter_staggered_animations: ^1.1.1
   url_launcher: ^6.3.1
@@ -75,3 +78,8 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
+
+dependency_overrides:
+  vector_math: ^2.3.0
+  proj4dart: ^3.0.0
+  mgrs_dart: ^3.0.0

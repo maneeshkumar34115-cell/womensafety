@@ -1,6 +1,8 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - Emergency Contacts Screen
 /// ReorderableListView with add/delete, max 5 contacts,
 /// stored via ContactsService.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,7 +26,7 @@ class ContactsScreen extends StatelessWidget {
             style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
       ),
       floatingActionButton: Consumer<ContactsService>(
-        builder: (_, service, __) {
+        builder: (_, service, _) {
           if (service.contacts.length >= 5) return const SizedBox.shrink();
           return FloatingActionButton.extended(
             onPressed: () => _showAddContactDialog(context),

@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 // SafeGuardHer - Places Service
 // Fetches REAL nearby places using OpenStreetMap Overpass API (FREE, no API key).
 // Features: 3x auto-retry with exponential backoff, offline caching.

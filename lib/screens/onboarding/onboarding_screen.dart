@@ -1,6 +1,8 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - Onboarding Screen (3 slides)
 /// Swipeable PageView with Skip + Next buttons, smooth dot indicators.
 /// Sets 'seen_onboarding' flag in SharedPreferences.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';

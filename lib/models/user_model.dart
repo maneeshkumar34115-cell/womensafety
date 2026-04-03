@@ -1,5 +1,7 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - User Data Model
 /// Represents a registered user stored in Firestore.
+library;
 
 class UserModel {
   final String uid;

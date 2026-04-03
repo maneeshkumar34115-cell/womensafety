@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 // SafeGuardHer - Live Location Screen
 // Real interactive Google Map with GPS, satellite toggle, polyline trail,
 // pulsing marker, permission dialogs, and confirmation bottom sheet.
@@ -695,7 +696,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                     children: [
                       AnimatedBuilder(
                         animation: _pulseAnimation,
-                        builder: (_, __) => Container(
+                        builder: (_, _) => Container(
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(

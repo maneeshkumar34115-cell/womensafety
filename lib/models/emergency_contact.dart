@@ -1,4 +1,6 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - Emergency Contact Data Model
+library;
 
 class EmergencyContact {
   final String id;

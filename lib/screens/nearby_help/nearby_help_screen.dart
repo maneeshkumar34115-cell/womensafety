@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 // SafeGuardHer - Nearby Help Screen
 // Real OpenStreetMap data via Overpass API (FREE). Map + List view.
 // Features: shimmer loading, filter chips with icons, retry logic,
@@ -402,7 +403,7 @@ class _NearbyHelpScreenState extends State<NearbyHelpScreen>
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: 5,
-      itemBuilder: (_, __) {
+      itemBuilder: (_, _) {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),

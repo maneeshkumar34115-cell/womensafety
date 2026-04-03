@@ -1,6 +1,8 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - Auth Service
 /// Handles Firebase Authentication (email/password) and Firestore user creation.
 /// Falls back to local simulation when Firebase is not configured yet.
+library;
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';

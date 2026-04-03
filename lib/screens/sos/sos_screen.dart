@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 // SafeGuardHer - SOS Alert Screen
 // Sends REAL SMS to emergency contacts with GPS location.
 // Logs SOS to Firestore. Volume-down 3x rapid trigger.

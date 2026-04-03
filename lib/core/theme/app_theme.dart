@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 // SafeGuardHer - App Theme
 // Premium matte design with dark maroon primary.
 

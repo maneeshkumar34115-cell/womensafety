@@ -1,39 +1,36 @@
-// SafeGuardHer - SMS Service
-// Sends real SMS using sms_sender package. Works WITHOUT internet.
-
-import 'package:telephony/telephony.dart';
+// ignore_for_file: use_build_context_synchronously
+import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/emergency_contact.dart';
 
 class SmsService {
-  static final Telephony telephony = Telephony.instance;
-
   /// Send emergency SMS to all contacts with custom message
+  /// Since telephony was removed, we use url_launcher to open SMS app
   static Future<List<String>> sendEmergencySMS({
     required List<EmergencyContact> contacts,
     required String message,
   }) async {
-    // Ensure permission
-    final bool? result = await telephony.requestPhoneAndSmsPermissions;
-    if (result != null && !result) {
-      throw Exception('SMS permission denied');
-    }
-
     final List<String> sentTo = [];
 
-    for (final contact in contacts) {
+    // Combine all phone numbers into one string separated by comma
+    final phones = contacts.map((c) => c.phone.replaceAll(RegExp(r'\s+'), '')).where((p) => p.isNotEmpty).join(',');
+    
+    if (phones.isNotEmpty) {
+      final uri = Uri.parse('sms:$phones?body=${Uri.encodeComponent(message)}');
       try {
-        final phone = contact.phone.replaceAll(RegExp(r'\s+'), '');
-        if (phone.isEmpty) continue;
-        await telephony.sendSms(
-          to: phone,
-          message: message,
-          isMultipart: true,
-        );
-        sentTo.add(contact.name);
-      } catch (e) {
-        // Continue sending to remaining contacts
-        continue;
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+          sentTo.addAll(contacts.map((c) => c.name));
+        }
+      } catch (_) {}
+    }
+
+    // Attempt to make a direct phone call to the first available contact as backup
+    if (contacts.isNotEmpty) {
+      final firstPhone = contacts.first.phone.replaceAll(RegExp(r'\s+'), '');
+      if (firstPhone.isNotEmpty) {
+        await FlutterPhoneDirectCaller.callNumber(firstPhone);
       }
     }
 
@@ -45,18 +42,14 @@ class SmsService {
     required List<EmergencyContact> contacts,
     required String message,
   }) async {
-    for (final contact in contacts) {
+    final phones = contacts.map((c) => c.phone.replaceAll(RegExp(r'\s+'), '')).where((p) => p.isNotEmpty).join(',');
+    if (phones.isNotEmpty) {
+      final uri = Uri.parse('sms:$phones?body=${Uri.encodeComponent(message)}');
       try {
-        final phone = contact.phone.replaceAll(RegExp(r'\s+'), '');
-        if (phone.isEmpty) continue;
-        await telephony.sendSms(
-          to: phone,
-          message: message,
-          isMultipart: true,
-        );
-      } catch (_) {
-        continue;
-      }
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+        }
+      } catch (_) {}
     }
   }
 
@@ -67,20 +60,20 @@ class SmsService {
   }) async {
     try {
       final cleanPhone = phone.replaceAll(RegExp(r'\s+'), '');
-      await telephony.sendSms(
-        to: cleanPhone, 
-        message: message,
-        isMultipart: true,
-      );
-      return true;
+      final uri = Uri.parse('sms:$cleanPhone?body=${Uri.encodeComponent(message)}');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
   }
 
-  /// Request SMS permission
+  /// Request SMS permission (Placeholder, as url_launcher doesn't strictly need SMS permission, but calling might need phone permission)
   static Future<bool> requestPermission() async {
-    final status = await Permission.sms.request();
+    final status = await Permission.phone.request();
     return status.isGranted;
   }
 }

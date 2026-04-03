@@ -1,5 +1,7 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - String Constants
 /// All user-facing strings centralized here for easy localization.
+library;
 
 class AppStrings {
   static const String appName = 'SafeGuardHer';

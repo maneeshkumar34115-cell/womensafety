@@ -1,6 +1,8 @@
+// ignore_for_file: use_build_context_synchronously
 /// SafeGuardHer - Settings Screen
 /// Notification toggle, SOS settings, language selector,
 /// dark mode toggle, and app info section.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -54,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         fontSize: 12, color: AppColors.textLight)),
                 secondary: const Icon(Icons.notifications_active_rounded,
                     color: AppColors.primary),
-                activeColor: AppColors.primary,
+                activeThumbColor: AppColors.primary,
               ),
             ),
             const SizedBox(height: 20),
@@ -75,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 12, color: AppColors.textLight)),
                     secondary:
                         const Icon(Icons.vibration, color: AppColors.warning),
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                   const Divider(height: 1),
                   SwitchListTile(
@@ -89,7 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 12, color: AppColors.textLight)),
                     secondary: const Icon(Icons.volume_up_rounded,
                         color: AppColors.danger),
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                 ],
               ),
@@ -149,7 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : Icons.light_mode_rounded,
                   color: _darkMode ? Colors.indigo : Colors.amber,
                 ),
-                activeColor: AppColors.primary,
+                activeThumbColor: AppColors.primary,
               ),
             ),
             const SizedBox(height: 20),

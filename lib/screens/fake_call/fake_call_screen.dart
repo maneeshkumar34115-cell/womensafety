@@ -1,6 +1,8 @@
+
 // SafeGuardHer - Fake Call Screen
 // Full incoming call simulation with voice recorder for family members.
 // Records audio, uploads to Firebase Storage, plays during fake call.
+// ignore_for_file: use_build_context_synchronously, unused_field
 
 import 'dart:async';
 import 'dart:io';
@@ -99,7 +101,9 @@ class _FakeCallScreenState extends State<FakeCallScreen>
   void _scheduleFakeCall() {
     final delay = _delays[_selectedDelay] ?? 5;
     showAppSnackBar(
-        context, 'Fake call from "$_callerName" in $_selectedDelay');
+      context,
+      'Fake call from "$_callerName" in $_selectedDelay',
+    );
 
     _ringTimer = Timer(Duration(seconds: delay), () {
       if (mounted) {
@@ -148,8 +152,10 @@ class _FakeCallScreenState extends State<FakeCallScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Record Caller Voice',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Record Caller Voice',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
         content: CustomTextField(
           label: 'Caller Name',
           hint: 'e.g. Papa, Bhaiya, Boss',
@@ -159,13 +165,17 @@ class _FakeCallScreenState extends State<FakeCallScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style: GoogleFonts.poppins(color: AppColors.textLight)),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: AppColors.textLight),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, nameCtrl.text),
-            child: Text('Start Recording',
-                style: GoogleFonts.poppins(color: Colors.white)),
+            child: Text(
+              'Start Recording',
+              style: GoogleFonts.poppins(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -180,8 +190,7 @@ class _FakeCallScreenState extends State<FakeCallScreen>
     final micPerm = await Permission.microphone.request();
     if (!micPerm.isGranted) {
       if (mounted) {
-        showAppSnackBar(context, 'Microphone permission denied',
-            isError: true);
+        showAppSnackBar(context, 'Microphone permission denied', isError: true);
       }
       return;
     }
@@ -203,7 +212,8 @@ class _FakeCallScreenState extends State<FakeCallScreen>
         context: context,
         isDismissible: false,
         shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         builder: (ctx) => _RecordingSheet(
           voiceName: voiceName,
           onStop: () async {
@@ -249,10 +259,10 @@ class _FakeCallScreenState extends State<FakeCallScreen>
           .doc(userId)
           .collection('voices')
           .add({
-        'name': voiceName,
-        'storageUrl': storageUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+            'name': voiceName,
+            'storageUrl': storageUrl,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
       await _loadVoices();
 
@@ -274,17 +284,26 @@ class _FakeCallScreenState extends State<FakeCallScreen>
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
-            20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          20,
+          20,
+          20,
+          MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Caller Settings',
-                style: GoogleFonts.poppins(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              'Caller Settings',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 16),
             CustomTextField(
               label: 'Caller Name',
@@ -303,14 +322,22 @@ class _FakeCallScreenState extends State<FakeCallScreen>
             const SizedBox(height: 16),
 
             // Voice selection
-            Text('Caller Voice (optional)',
-                style: GoogleFonts.poppins(
-                    fontSize: 14, fontWeight: FontWeight.w500)),
+            Text(
+              'Caller Voice (optional)',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 8),
             if (_savedVoices.isEmpty)
-              Text('No recorded voices. Tap + to record.',
-                  style: GoogleFonts.poppins(
-                      fontSize: 12, color: AppColors.textLight))
+              Text(
+                'No recorded voices. Tap + to record.',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: AppColors.textLight,
+                ),
+              )
             else
               ..._savedVoices.map((voice) {
                 final isSelected = _selectedVoiceUrl == voice['storageUrl'];
@@ -321,14 +348,17 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                         : Icons.radio_button_off,
                     color: isSelected ? AppColors.primary : AppColors.textLight,
                   ),
-                  title: Text(voice['name'] ?? '',
-                      style: GoogleFonts.poppins(fontSize: 14)),
+                  title: Text(
+                    voice['name'] ?? '',
+                    style: GoogleFonts.poppins(fontSize: 14),
+                  ),
                   onTap: () {
-                    setState(
-                        () => _selectedVoiceUrl = voice['storageUrl']);
+                    setState(() => _selectedVoiceUrl = voice['storageUrl']);
                     Navigator.pop(ctx);
                     showAppSnackBar(
-                        context, 'Voice "${voice['name']}" selected');
+                      context,
+                      'Voice "${voice['name']}" selected',
+                    );
                   },
                   dense: true,
                 );
@@ -380,8 +410,11 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                 child: CircleAvatar(
                   radius: 60,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                  child: const Icon(Icons.person,
-                      size: 60, color: AppColors.primary),
+                  child: const Icon(
+                    Icons.person,
+                    size: 60,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -398,10 +431,7 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                 _callAnswered
                     ? _formatDuration(_callDuration)
                     : '$_callerNumber  •  Incoming Call',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.white70,
-                ),
+                style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70),
               ),
               const Spacer(flex: 3),
 
@@ -418,8 +448,11 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                           color: AppColors.danger,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.call_end_rounded,
-                            color: Colors.white, size: 32),
+                        child: const Icon(
+                          Icons.call_end_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
                       ),
                     ),
                     GestureDetector(
@@ -438,8 +471,11 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.call_rounded,
-                            color: Colors.white, size: 32),
+                        child: const Icon(
+                          Icons.call_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
                       ),
                     ),
                   ],
@@ -449,8 +485,7 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _CallButton(
-                        icon: Icons.mic_off_rounded, label: 'Mute'),
+                    _CallButton(icon: Icons.mic_off_rounded, label: 'Mute'),
                     const SizedBox(width: 24),
                     GestureDetector(
                       onTap: _endCall,
@@ -461,13 +496,18 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                           color: AppColors.danger,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.call_end_rounded,
-                            color: Colors.white, size: 32),
+                        child: const Icon(
+                          Icons.call_end_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 24),
                     _CallButton(
-                        icon: Icons.volume_up_rounded, label: 'Speaker'),
+                      icon: Icons.volume_up_rounded,
+                      label: 'Speaker',
+                    ),
                   ],
                 ),
               ],
@@ -482,8 +522,10 @@ class _FakeCallScreenState extends State<FakeCallScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Fake Call',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text(
+          'Fake Call',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.mic_rounded),
@@ -505,15 +547,22 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                   color: Colors.orange.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.phone_in_talk_rounded,
-                    size: 48, color: Colors.orange),
+                child: const Icon(
+                  Icons.phone_in_talk_rounded,
+                  size: 48,
+                  color: Colors.orange,
+                ),
               ),
             ),
             const SizedBox(height: 24),
             Center(
-              child: Text('Schedule a Fake Call',
-                  style: GoogleFonts.poppins(
-                      fontSize: 22, fontWeight: FontWeight.bold)),
+              child: Text(
+                'Schedule a Fake Call',
+                style: GoogleFonts.poppins(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             const SizedBox(height: 8),
             Center(
@@ -521,9 +570,10 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                 'Pick a delay and a simulated call will ring to help you exit any uncomfortable situation.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: AppColors.textLight,
-                    height: 1.5),
+                  fontSize: 13,
+                  color: AppColors.textLight,
+                  height: 1.5,
+                ),
               ),
             ),
             const SizedBox(height: 32),
@@ -548,42 +598,56 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                   children: [
                     CircleAvatar(
                       radius: 24,
-                      backgroundColor:
-                          AppColors.primary.withValues(alpha: 0.1),
-                      child: const Icon(Icons.person,
-                          color: AppColors.primary),
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      child: const Icon(Icons.person, color: AppColors.primary),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_callerName,
-                              style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600)),
-                          Text(_callerNumber,
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: AppColors.textLight)),
+                          Text(
+                            _callerName,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            _callerNumber,
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: AppColors.textLight,
+                            ),
+                          ),
                           if (_selectedVoiceUrl != null)
-                            Text('🔊 Voice attached',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 11,
-                                    color: AppColors.success)),
+                            Text(
+                              '🔊 Voice attached',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: AppColors.success,
+                              ),
+                            ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.edit_rounded,
-                        color: AppColors.textLight, size: 20),
+                    const Icon(
+                      Icons.edit_rounded,
+                      color: AppColors.textLight,
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 24),
 
-            Text('Ring after:',
-                style: GoogleFonts.poppins(
-                    fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(
+              'Ring after:',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 16),
 
             Row(
@@ -595,18 +659,17 @@ class _FakeCallScreenState extends State<FakeCallScreen>
                     child: ChoiceChip(
                       label: Text(label),
                       selected: isSelected,
-                      onSelected: (_) =>
-                          setState(() => _selectedDelay = label),
+                      onSelected: (_) => setState(() => _selectedDelay = label),
                       selectedColor: AppColors.primary,
                       backgroundColor: AppColors.surface,
                       labelStyle: GoogleFonts.poppins(
-                        color:
-                            isSelected ? Colors.white : AppColors.textDark,
+                        color: isSelected ? Colors.white : AppColors.textDark,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 );
@@ -646,9 +709,10 @@ class _CallButton extends StatelessWidget {
           child: Icon(icon, color: Colors.white, size: 24),
         ),
         const SizedBox(height: 6),
-        Text(label,
-            style: GoogleFonts.poppins(
-                color: Colors.white70, fontSize: 11)),
+        Text(
+          label,
+          style: GoogleFonts.poppins(color: Colors.white70, fontSize: 11),
+        ),
       ],
     );
   }
@@ -657,8 +721,7 @@ class _CallButton extends StatelessWidget {
 class _RecordingSheet extends StatefulWidget {
   final String voiceName;
   final VoidCallback onStop;
-  const _RecordingSheet(
-      {required this.voiceName, required this.onStop});
+  const _RecordingSheet({required this.voiceName, required this.onStop});
 
   @override
   State<_RecordingSheet> createState() => _RecordingSheetState();
@@ -702,18 +765,29 @@ class _RecordingSheetState extends State<_RecordingSheet> {
             child: const Icon(Icons.mic, color: AppColors.danger, size: 40),
           ),
           const SizedBox(height: 16),
-          Text('Recording...',
-              style: GoogleFonts.poppins(
-                  fontSize: 18, fontWeight: FontWeight.w600)),
-          Text('"${widget.voiceName}"',
-              style: GoogleFonts.poppins(
-                  color: AppColors.textLight, fontSize: 14)),
+          Text(
+            'Recording...',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            '"${widget.voiceName}"',
+            style: GoogleFonts.poppins(
+              color: AppColors.textLight,
+              fontSize: 14,
+            ),
+          ),
           const SizedBox(height: 12),
-          Text(_fmt(_seconds),
-              style: GoogleFonts.poppins(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.danger)),
+          Text(
+            _fmt(_seconds),
+            style: GoogleFonts.poppins(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: AppColors.danger,
+            ),
+          ),
           const SizedBox(height: 24),
           GradientButton(
             text: 'Stop & Save',
