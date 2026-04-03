@@ -55,38 +55,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       extendBody: true,
-      // Floating SOS button — always accessible from any tab
-      floatingActionButton: _currentIndex == 0
-          ? Container(
-              margin: const EdgeInsets.only(bottom: 60),
-              child: FloatingActionButton.large(
-                heroTag: 'sos_fab',
-                backgroundColor: AppColors.danger,
-                elevation: 8,
-                onPressed: () {
-                  HapticFeedback.heavyImpact();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const SOSScreen()),
-                  );
-                },
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.sos_rounded,
-                        color: Colors.white, size: 32),
-                    Text('SOS',
-                        style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                  ],
-                ),
-              ),
-            )
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: FrostedBottomNavBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
