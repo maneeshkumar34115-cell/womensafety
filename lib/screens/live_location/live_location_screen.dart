@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/helpers.dart';
@@ -28,10 +29,11 @@ class LiveLocationScreen extends StatefulWidget {
 }
 
 class _LiveLocationScreenState extends State<LiveLocationScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   bool _isSharing = false;
   bool _isLoading = true;
   bool _mapReady = false;
+  bool _hasRealLocation = false;
   LatLng _userLocation = _defaultCenter;
   String _latitude = '--';
   String _longitude = '--';
@@ -53,6 +55,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -64,7 +67,17 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (!_hasRealLocation) {
+        _fetchLocation();
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _trackingTimer?.cancel();
     _pulseController.dispose();
     _stopSharing();
@@ -73,21 +86,50 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
 
   Future<void> _fetchLocation() async {
     setState(() => _isLoading = true);
+
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) setState(() => _isLoading = false);
+      _showEnableLocationDialog();
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) setState(() => _isLoading = false);
+        _showPermissionDeniedDialog(
+          'Permission Required',
+          'Location permission is required to track your device.',
+        );
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) setState(() => _isLoading = false);
+      _showPermissionDeniedDialog(
+        'Permission Disabled',
+        'Location permission is permanently denied. Please enable it in Settings.',
+      );
+      return;
+    }
+
     try {
-      final locService =
-          Provider.of<LocationService>(context, listen: false);
+      final locService = Provider.of<LocationService>(context, listen: false);
       final pos = await locService.getCurrentLocation();
       if (pos != null && mounted) {
         final newLoc = LatLng(pos.latitude, pos.longitude);
         setState(() {
+          _hasRealLocation = true;
           _userLocation = newLoc;
           _latitude = pos.latitude.toStringAsFixed(6);
           _longitude = pos.longitude.toStringAsFixed(6);
           _lastUpdateTime = DateTime.now();
           _lastUpdated = 'Just now';
           // Add to trail
-          if (_locationHistory.isEmpty ||
-              _locationHistory.last != newLoc) {
+          if (_locationHistory.isEmpty || _locationHistory.last != newLoc) {
             _locationHistory.add(newLoc);
           }
         });
@@ -101,6 +143,40 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showEnableLocationDialog() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'GPS is Disabled',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'Please enable GPS to get your current location.',
+          style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textLight),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: AppColors.textLight),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await Geolocator.openLocationSettings();
+            },
+            child: Text('Enable GPS', style: GoogleFonts.poppins(fontSize: 14)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _animateMapTo(LatLng target) {
@@ -152,15 +228,23 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
         context: context,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20)),
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Row(
             children: [
-              Icon(Icons.location_on_rounded,
-                  color: AppColors.primary, size: 24),
+              Icon(
+                Icons.location_on_rounded,
+                color: AppColors.primary,
+                size: 24,
+              ),
               const SizedBox(width: 8),
-              Text('Background Location',
-                  style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600, fontSize: 16)),
+              Text(
+                'Background Location',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
             ],
           ),
           content: Text(
@@ -168,18 +252,22 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
             'we need "Allow all the time" location access.\n\n'
             'This ensures your trusted contacts always have your latest position.',
             style: GoogleFonts.poppins(
-                fontSize: 13, color: AppColors.textLight, height: 1.5),
+              fontSize: 13,
+              color: AppColors.textLight,
+              height: 1.5,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Skip',
-                  style: GoogleFonts.poppins(color: AppColors.textLight)),
+              child: Text(
+                'Skip',
+                style: GoogleFonts.poppins(color: AppColors.textLight),
+              ),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Allow',
-                  style: GoogleFonts.poppins(fontSize: 14)),
+              child: Text('Allow', style: GoogleFonts.poppins(fontSize: 14)),
             ),
           ],
         ),
@@ -199,26 +287,32 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20)),
-        title: Text(title,
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        content: Text(message,
-            style:
-                GoogleFonts.poppins(fontSize: 13, color: AppColors.textLight)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textLight),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style: GoogleFonts.poppins(color: AppColors.textLight)),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: AppColors.textLight),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               openAppSettings();
             },
-            child: Text('Open Settings',
-                style: GoogleFonts.poppins(fontSize: 14)),
+            child: Text(
+              'Open Settings',
+              style: GoogleFonts.poppins(fontSize: 14),
+            ),
           ),
         ],
       ),
@@ -254,8 +348,10 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
   }
 
   void _showConfirmationSheet() {
-    final contactsService =
-        Provider.of<ContactsService>(context, listen: false);
+    final contactsService = Provider.of<ContactsService>(
+      context,
+      listen: false,
+    );
     final contacts = contactsService.contacts;
 
     showModalBottomSheet(
@@ -291,15 +387,20 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                   color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.share_location_rounded,
-                    size: 32, color: AppColors.primary),
+                child: const Icon(
+                  Icons.share_location_rounded,
+                  size: 32,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: 16),
 
               Text(
                 'Share Live Location',
                 style: GoogleFonts.poppins(
-                    fontSize: 20, fontWeight: FontWeight.w700),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -307,9 +408,10 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                 '${contacts.length} trusted contact${contacts.length == 1 ? '' : 's'}',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: AppColors.textLight,
-                    height: 1.5),
+                  fontSize: 13,
+                  color: AppColors.textLight,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -328,8 +430,9 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                         children: [
                           CircleAvatar(
                             radius: 18,
-                            backgroundColor:
-                                AppColors.primary.withValues(alpha: 0.12),
+                            backgroundColor: AppColors.primary.withValues(
+                              alpha: 0.12,
+                            ),
                             child: Text(
                               contact.name[0].toUpperCase(),
                               style: GoogleFonts.poppins(
@@ -344,19 +447,28 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(contact.name,
-                                    style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13)),
-                                Text(contact.phone,
-                                    style: GoogleFonts.poppins(
-                                        fontSize: 11,
-                                        color: AppColors.textLight)),
+                                Text(
+                                  contact.name,
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  contact.phone,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: AppColors.textLight,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                          Icon(Icons.sms_rounded,
-                              size: 18, color: AppColors.primary),
+                          Icon(
+                            Icons.sms_rounded,
+                            size: 18,
+                            color: AppColors.primary,
+                          ),
                         ],
                       ),
                     );
@@ -367,7 +479,9 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
               Text(
                 'An SMS with your live location link will be sent',
                 style: GoogleFonts.poppins(
-                    fontSize: 11, color: AppColors.textLight),
+                  fontSize: 11,
+                  color: AppColors.textLight,
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -380,13 +494,17 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                         side: BorderSide(color: Colors.grey.shade300),
                       ),
-                      child: Text('Cancel',
-                          style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textLight)),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textLight,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -399,15 +517,16 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                         setState(() => _isSharing = true);
                         _startSharing();
                       },
-                      icon: const Icon(Icons.share_location_rounded,
-                          size: 20),
-                      label: Text('Start Sharing',
-                          style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600)),
+                      icon: const Icon(Icons.share_location_rounded, size: 20),
+                      label: Text(
+                        'Start Sharing',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                      ),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
@@ -429,8 +548,10 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
 
     // Send ONE SMS to all emergency contacts
     final auth = Provider.of<AuthService>(context, listen: false);
-    final contactsService =
-        Provider.of<ContactsService>(context, listen: false);
+    final contactsService = Provider.of<ContactsService>(
+      context,
+      listen: false,
+    );
     final userName = auth.currentUser?.fullName ?? 'User';
     final userId = auth.currentUser?.uid ?? 'unknown';
 
@@ -459,8 +580,10 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
     });
 
     if (mounted) {
-      showAppSnackBar(context,
-          'Location sharing started — SMS sent to ${contactsService.contacts.length} contact(s)');
+      showAppSnackBar(
+        context,
+        'Location sharing started — SMS sent to ${contactsService.contacts.length} contact(s)',
+      );
     }
   }
 
@@ -470,11 +593,11 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
           .collection('live_locations')
           .doc(userId)
           .set({
-        'latitude': double.tryParse(_latitude) ?? 0,
-        'longitude': double.tryParse(_longitude) ?? 0,
-        'timestamp': FieldValue.serverTimestamp(),
-        'isActive': _isSharing,
-      });
+            'latitude': double.tryParse(_latitude) ?? 0,
+            'longitude': double.tryParse(_longitude) ?? 0,
+            'timestamp': FieldValue.serverTimestamp(),
+            'isActive': _isSharing,
+          });
     } catch (_) {
       // Firestore may not be configured
     }
@@ -489,9 +612,9 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
           .collection('live_locations')
           .doc(userId)
           .set({
-        'isActive': false,
-        'timestamp': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'isActive': false,
+            'timestamp': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } catch (_) {}
   }
 
@@ -549,16 +672,20 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Live Tracking',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text(
+          'Live Tracking',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
         actions: [
           if (_isSharing)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Center(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.danger.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -572,13 +699,15 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: AppColors.danger
-                                .withValues(alpha: _pulseAnimation.value),
+                            color: AppColors.danger.withValues(
+                              alpha: _pulseAnimation.value,
+                            ),
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.danger
-                                    .withValues(alpha: _pulseAnimation.value * 0.5),
+                                color: AppColors.danger.withValues(
+                                  alpha: _pulseAnimation.value * 0.5,
+                                ),
                                 blurRadius: 6,
                               ),
                             ],
@@ -586,11 +715,14 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text('LIVE',
-                          style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.danger)),
+                      Text(
+                        'LIVE',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.danger,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -659,12 +791,14 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                               circleId: const CircleId('sharing_radius'),
                               center: _userLocation,
                               radius: 60,
-                              fillColor:
-                                  AppColors.primary.withValues(alpha: 0.1),
-                              strokeColor:
-                                  AppColors.primary.withValues(alpha: 0.3),
+                              fillColor: AppColors.primary.withValues(
+                                alpha: 0.1,
+                              ),
+                              strokeColor: AppColors.primary.withValues(
+                                alpha: 0.3,
+                              ),
                               strokeWidth: 2,
-                            )
+                            ),
                           }
                         : {},
                     markers: {
@@ -672,8 +806,9 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                         markerId: const MarkerId('user_location'),
                         position: _userLocation,
                         icon: BitmapDescriptor.defaultMarkerWithHue(
-                            BitmapDescriptor.hueRed),
-                      )
+                          BitmapDescriptor.hueRed,
+                        ),
+                      ),
                     },
                   ),
 
@@ -686,13 +821,56 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const CircularProgressIndicator(
-                                color: AppColors.primary),
+                              color: AppColors.primary,
+                            ),
                             const SizedBox(height: 12),
-                            Text('Loading map...',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 13,
-                                    color: AppColors.textLight)),
+                            Text(
+                              'Loading map...',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: AppColors.textLight,
+                              ),
+                            ),
                           ],
+                        ),
+                      ),
+                    ),
+
+                  // Fallback overlay
+                  if (!_isLoading && !_hasRealLocation)
+                    Container(
+                      color: AppColors.background.withValues(alpha: 0.9),
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.location_off_rounded,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Please enable GPS to get your current location',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _fetchLocation,
+                                child: Text(
+                                  'Retry',
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -718,8 +896,9 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                           icon: Icons.add,
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            _mapController
-                                ?.animateCamera(CameraUpdate.zoomIn());
+                            _mapController?.animateCamera(
+                              CameraUpdate.zoomIn(),
+                            );
                           },
                         ),
                         const SizedBox(height: 8),
@@ -727,8 +906,9 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                           icon: Icons.remove,
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            _mapController
-                                ?.animateCamera(CameraUpdate.zoomOut());
+                            _mapController?.animateCamera(
+                              CameraUpdate.zoomOut(),
+                            );
                           },
                         ),
                         const SizedBox(height: 8),
@@ -737,8 +917,8 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                           onTap: () {
                             HapticFeedback.lightImpact();
                             _mapController?.animateCamera(
-                                CameraUpdate.newLatLngZoom(
-                                    _userLocation, 16));
+                              CameraUpdate.newLatLngZoom(_userLocation, 16),
+                            );
                           },
                         ),
                       ],
@@ -757,8 +937,9 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.06),
@@ -779,19 +960,26 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(Icons.access_time_rounded,
-                          size: 16, color: AppColors.textLight),
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: 16,
+                        color: AppColors.textLight,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'Last updated: $_lastUpdated',
                         style: GoogleFonts.poppins(
-                            fontSize: 12, color: AppColors.textLight),
+                          fontSize: 12,
+                          color: AppColors.textLight,
+                        ),
                       ),
                       const Spacer(),
                       if (_locationHistory.length >= 2)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.accent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
@@ -799,9 +987,10 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                           child: Text(
                             '${_locationHistory.length} points',
                             style: GoogleFonts.poppins(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.accent),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.accent,
+                            ),
                           ),
                         ),
                     ],
@@ -817,15 +1006,20 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                       borderRadius: BorderRadius.circular(16),
                       border: _isSharing
                           ? Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.2))
+                              color: AppColors.primary.withValues(alpha: 0.2),
+                            )
                           : null,
                     ),
                     child: SwitchListTile(
                       value: _isSharing,
                       onChanged: (_) => _toggleSharing(),
-                      title: Text('Share Live Location',
-                          style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600, fontSize: 15)),
+                      title: Text(
+                        'Share Live Location',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
                       subtitle: Text(
                         _isSharing
                             ? 'Updating every 10 seconds'
@@ -850,12 +1044,13 @@ class _LiveLocationScreenState extends State<LiveLocationScreen>
                           size: 22,
                         ),
                       ),
-                      activeTrackColor:
-                          AppColors.primary.withValues(alpha: 0.5),
-                      thumbColor:
-                          WidgetStatePropertyAll(AppColors.primary),
+                      activeTrackColor: AppColors.primary.withValues(
+                        alpha: 0.5,
+                      ),
+                      thumbColor: WidgetStatePropertyAll(AppColors.primary),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -881,8 +1076,11 @@ class _MapButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _MapButton(
-      {required this.icon, required this.label, required this.onTap});
+  const _MapButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -901,11 +1099,14 @@ class _MapButton extends StatelessWidget {
             children: [
               Icon(icon, size: 18, color: AppColors.textDark),
               const SizedBox(width: 4),
-              Text(label,
-                  style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textDark)),
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textDark,
+                ),
+              ),
             ],
           ),
         ),
@@ -960,13 +1161,21 @@ class _CoordChip extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: GoogleFonts.poppins(
-                    fontSize: 11, color: AppColors.textLight)),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: AppColors.textLight,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text(value,
-                style: GoogleFonts.poppins(
-                    fontSize: 14, fontWeight: FontWeight.w600)),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
