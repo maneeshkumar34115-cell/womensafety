@@ -6,7 +6,7 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -37,7 +37,7 @@ class _FakeCallScreenState extends State<FakeCallScreen>
   int _callDuration = 0;
   Timer? _ringTimer;
   Timer? _callTimer;
-  List<Map<String, String>> _contacts = [
+  final List<Map<String, String>> _contacts = [
     {'id': '1', 'name': 'Papa', 'phone': '+91 98765 43210'},
   ];
   String _selectedContactId = '1';

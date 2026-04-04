@@ -11,6 +11,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/helpers.dart';
@@ -33,6 +37,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   bool _isSubmitting = false;
   bool _isSubmitted = false;
   String? _reportId;
+  File? _attachedVideo;
+  Map<String, dynamic>? _selectedSosVideo;
+  String? _videoThumbnailPath;
+
   final List<File> _attachedImages = [];
   final ImagePicker _picker = ImagePicker();
 
@@ -139,6 +147,92 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     setState(() => _attachedImages.removeAt(index));
   }
 
+  Future<void> _pickVideo() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.video,
+      );
+
+      if (result != null) {
+        File file = File(result.files.single.path!);
+        setState(() {
+          _attachedVideo = file;
+          _selectedSosVideo = null;
+          _videoThumbnailPath = null;
+        });
+        _generateThumbnail(file.path);
+      }
+    } catch (e) {
+      if (mounted) showAppSnackBar(context, 'Could not pick video', isError: true);
+    }
+  }
+
+  Future<void> _generateThumbnail(String path) async {
+    try {
+      final uint8list = await VideoThumbnail.thumbnailFile(
+        video: path,
+        thumbnailPath: (await getTemporaryDirectory()).path,
+        imageFormat: ImageFormat.JPEG,
+        maxHeight: 100,
+        quality: 75,
+      );
+      if (mounted && uint8list != null) {
+        setState(() {
+          _videoThumbnailPath = uint8list;
+        });
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  Future<void> _fetchSOSVideo() async {
+    setState(() => _isSubmitting = true);
+    try {
+      // Robust check: Ensure Firebase is initialized before first database call
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
+
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final userId = auth.currentUser?.uid;
+      if (userId == null) throw 'User not logged in';
+
+      final query = await FirebaseFirestore.instance
+          .collection('sos_events')
+          .where('userId', isEqualTo: userId)
+          .where('status', isEqualTo: 'pending_review')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) {
+        if (mounted) showAppSnackBar(context, 'No pending SOS videos found', isError: true);
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
+      final doc = query.docs.first;
+      setState(() {
+        _selectedSosVideo = {'id': doc.id, ...doc.data()};
+        _attachedVideo = null;
+        _videoThumbnailPath = null;
+      });
+      if (mounted) showAppSnackBar(context, 'SOS Video attached successfully');
+    } catch (e) {
+      if (mounted) showAppSnackBar(context, 'Error fetching SOS video: $e', isError: true);
+    }
+    setState(() => _isSubmitting = false);
+  }
+
+  void _removeVideo() {
+    setState(() {
+      _attachedVideo = null;
+      _selectedSosVideo = null;
+      _videoThumbnailPath = null;
+    });
+  }
+
   Future<void> _submitReport() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -185,6 +279,34 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       } catch (_) {}
 
       // Save to Firestore
+      String? uploadedVideoUrl;
+      String? videoSource;
+      String? linkedSosId;
+
+      if (_attachedVideo != null) {
+        final videoStoragePath =
+            'incident_videos/$userId/${timestamp.millisecondsSinceEpoch}.mp4';
+        try {
+          final ref = FirebaseStorage.instance.ref(videoStoragePath);
+          await ref.putFile(_attachedVideo!);
+          uploadedVideoUrl = await ref.getDownloadURL();
+          videoSource = 'gallery';
+        } catch (e) {
+          // Upload failed entirely
+        }
+      } else if (_selectedSosVideo != null) {
+        uploadedVideoUrl = _selectedSosVideo!['videoUrl'];
+        videoSource = 'sos';
+        linkedSosId = _selectedSosVideo!['id'];
+
+        try {
+          await FirebaseFirestore.instance.collection('sos_events').doc(linkedSosId).update({
+             'linkedToReport': true,
+             'reportId': reportId,
+          });
+        } catch (_) {}
+      }
+
       try {
         await FirebaseFirestore.instance.collection('reports').add({
           'reportId': reportId,
@@ -196,8 +318,12 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
           'latitude': lat,
           'longitude': lng,
           'imageUrls': imageUrls,
+          'videoUrl': uploadedVideoUrl,
+          'videoSource': videoSource,
+          'linkedSosEventId': linkedSosId,
           'timestamp': FieldValue.serverTimestamp(),
           'status': 'submitted',
+          'isAnonymous': true,
         });
       } catch (e) {
         // Firestore may not be configured
@@ -252,7 +378,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Your incident report has been submitted safely. Authorities will review it.',
+                  'Report submitted. Anonymous and confidential.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
@@ -495,6 +621,93 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 20),
+                Text(
+                  'Attach Video (Optional)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.video_library_rounded, size: 18),
+                        label: const Text('Add Video'),
+                        onPressed: _pickVideo,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.sos_rounded, size: 18, color: AppColors.danger),
+                        label: const Text('Use SOS Video'),
+                        onPressed: _fetchSOSVideo,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_attachedVideo != null || _selectedSosVideo != null) ...[
+                  const SizedBox(height: 12),
+                  Stack(
+                    children: [
+                      Container(
+                        height: 100,
+                        width: 160,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(12),
+                          image: _videoThumbnailPath != null
+                              ? DecorationImage(
+                                  image: FileImage(File(_videoThumbnailPath!)),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: _videoThumbnailPath == null
+                            ? const Center(
+                                child: Icon(Icons.videocam_rounded, size: 40, color: Colors.grey),
+                              )
+                            : const Center(
+                                child: Icon(Icons.play_circle_fill_rounded,
+                                    size: 40, color: Colors.white70),
+                              ),
+                      ),
+                      Positioned(
+                        bottom: 8,
+                        left: 8,
+                        right: 8,
+                        child: Text(
+                          _selectedSosVideo != null ? 'SOS Video Attached' : 'Gallery Video',
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            backgroundColor: Colors.black54,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: _removeVideo,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.danger,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close, color: Colors.white, size: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 32),
 
                 // Submit

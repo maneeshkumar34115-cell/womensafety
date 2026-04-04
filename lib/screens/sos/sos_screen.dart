@@ -14,6 +14,11 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vibration/vibration.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'dart:io';
+import 'package:camera/camera.dart';
+import 'package:gal/gal.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/helpers.dart';
@@ -56,6 +61,9 @@ class _SOSScreenState extends State<SOSScreen>
   bool _inGracePeriod = false;
   int _gracePeriodCountdown = 5;
 
+  CameraController? _cameraController;
+  bool _isRecording = false;
+
   @override
   void initState() {
     super.initState();
@@ -87,6 +95,16 @@ class _SOSScreenState extends State<SOSScreen>
     _pulseController.dispose();
     _audioPlayer.dispose();
     Vibration.cancel();
+    
+    if (_isRecording && _cameraController != null) {
+      _cameraController!.stopVideoRecording().then((_) {
+        _cameraController?.dispose();
+      }).catchError((_) {
+        _cameraController?.dispose();
+      });
+    } else {
+      _cameraController?.dispose();
+    }
     super.dispose();
   }
 
@@ -151,6 +169,8 @@ class _SOSScreenState extends State<SOSScreen>
     });
     HapticFeedback.heavyImpact();
 
+    _startSilentVideoRecording();
+
     final settings = Provider.of<SettingsProvider>(context, listen: false);
 
     // Audio and Vibration
@@ -161,7 +181,7 @@ class _SOSScreenState extends State<SOSScreen>
     
     if (settings.sosVibration) {
       _vibrationTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
-        if (await Vibration.hasVibrator() ?? false) {
+        if (await Vibration.hasVibrator()) {
           Vibration.vibrate(duration: 1000);
         }
       });
@@ -189,6 +209,94 @@ class _SOSScreenState extends State<SOSScreen>
         _executeSOSPayload();
       }
     });
+  }
+
+  Future<void> _startSilentVideoRecording() async {
+    final status = await [Permission.camera, Permission.microphone].request();
+    if (status[Permission.camera]!.isDenied || status[Permission.microphone]!.isDenied) {
+      if (mounted) {
+        showAppSnackBar(context, 'Camera & Mic permissions are required for SOS video', isError: true);
+      }
+      return;
+    }
+
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) return;
+
+      final frontCamera = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.front,
+        orElse: () => cameras.first,
+      );
+
+      _cameraController = CameraController(
+        frontCamera,
+        ResolutionPreset.medium,
+        enableAudio: true,
+      );
+
+      await _cameraController!.initialize();
+      if (!mounted) return;
+      setState(() {});
+
+      await _cameraController!.startVideoRecording();
+      _isRecording = true;
+
+      Future.delayed(const Duration(seconds: 15), () async {
+        if (!mounted || !_isRecording || _cameraController == null) return;
+
+        try {
+          final XFile videoFile = await _cameraController!.stopVideoRecording();
+          _isRecording = false;
+
+          // Save to gallery
+          try {
+            await Gal.putVideo(videoFile.path, album: 'SafeGuardHer');
+          } catch (e) {
+            try { await Gal.putVideo(videoFile.path); } catch (_) {}
+          }
+
+          final auth = Provider.of<AuthService>(context, listen: false);
+          final userId = auth.currentUser?.uid ?? 'unknown';
+          final videoId = const Uuid().v4();
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+          final storageRef = FirebaseStorage.instance.ref('sos_videos/$userId/$timestamp.mp4');
+          await storageRef.putFile(File(videoFile.path));
+          final videoUrl = await storageRef.getDownloadURL();
+
+          final locationService = Provider.of<LocationService>(context, listen: false);
+          final pos = locationService.currentPosition;
+          Map<String, dynamic>? locationMap;
+          if (pos != null) {
+            locationMap = {'latitude': pos.latitude, 'longitude': pos.longitude};
+          }
+
+          await FirebaseFirestore.instance.collection('sos_events').add({
+            'videoId': videoId,
+            'userId': userId,
+            'videoUrl': videoUrl,
+            'location': locationMap,
+            'timestamp': FieldValue.serverTimestamp(),
+            'status': 'pending_review',
+            'firFiled': false,
+            'savedToGallery': true,
+          });
+
+          if (mounted) {
+            showAppSnackBar(context, 'SOS video saved to gallery and database');
+          }
+        } catch (e) {
+          if (mounted) {
+            showAppSnackBar(context, 'Error processing SOS video: $e', isError: true);
+          }
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        showAppSnackBar(context, 'Error starting camera: $e', isError: true);
+      }
+    }
   }
 
   Future<void> _executeSOSPayload() async {
@@ -355,6 +463,12 @@ class _SOSScreenState extends State<SOSScreen>
     _audioPlayer.stop();
     Vibration.cancel();
     
+    if (_isRecording && _cameraController != null) {
+      _cameraController!.stopVideoRecording().then((_) {
+        _isRecording = false;
+      }).catchError((_) {});
+    }
+    
     setState(() {
       _sosActivated = false;
       _inGracePeriod = false;
@@ -382,9 +496,22 @@ class _SOSScreenState extends State<SOSScreen>
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+        body: Stack(
+          children: [
+            if (_cameraController != null && _cameraController!.value.isInitialized)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                width: 1,
+                height: 1,
+                child: Opacity(
+                  opacity: 0.1,
+                  child: CameraPreview(_cameraController!),
+                ),
+              ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (!_sosActivated) ...[
                 // Power Button SOS info
@@ -650,6 +777,8 @@ class _SOSScreenState extends State<SOSScreen>
               ],
             ],
           ),
+        ),
+          ],
         ),
       ),
     );

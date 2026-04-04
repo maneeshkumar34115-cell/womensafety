@@ -106,11 +106,7 @@ void main() async {
   ));
 
   // Initialize Firebase to enable Auth, Firestore, and Storage
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    // Handling if google-services.json is missing or invalid.
-  }
+  await Firebase.initializeApp();
 
   // Initialize Background Service
   try {

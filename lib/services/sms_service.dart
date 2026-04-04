@@ -1,10 +1,12 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:background_sms/background_sms.dart';
 import '../models/emergency_contact.dart';
 
 class SmsService {
+  static const MethodChannel _smsChannel = MethodChannel('com.safeguardher/sms');
+
   /// Send emergency SMS to all contacts dynamically
   static Future<List<String>> sendEmergencySMS({
     required List<EmergencyContact> contacts,
@@ -12,14 +14,16 @@ class SmsService {
   }) async {
     final List<String> sentTo = [];
 
-    // Directly send SMS via background_sms
+    // Directly send SMS via native MethodChannel
     for (var contact in contacts) {
       final phone = contact.phone.replaceAll(RegExp(r'\s+'), '');
       if (phone.isNotEmpty) {
         try {
-          SmsStatus result = await BackgroundSms.sendMessage(
-              phoneNumber: phone, message: message);
-          if (result == SmsStatus.sent) {
+          final bool result = await _smsChannel.invokeMethod('sendSMS', {
+            'phone': phone,
+            'message': message,
+          });
+          if (result) {
             sentTo.add(contact.name);
           }
         } catch (_) {
@@ -70,9 +74,13 @@ class SmsService {
     try {
       final cleanPhone = phone.replaceAll(RegExp(r'\s+'), '');
       
-      SmsStatus result = await BackgroundSms.sendMessage(
-              phoneNumber: cleanPhone, message: message);
-      if (result == SmsStatus.sent) return true;
+      try {
+        final bool result = await _smsChannel.invokeMethod('sendSMS', {
+          'phone': cleanPhone,
+          'message': message,
+        });
+        if (result) return true;
+      } catch (_) {}
       
       final uri = Uri.parse('sms:$cleanPhone?body=${Uri.encodeComponent(message)}');
       if (await canLaunchUrl(uri)) {
