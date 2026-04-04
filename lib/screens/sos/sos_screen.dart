@@ -51,6 +51,10 @@ class _SOSScreenState extends State<SOSScreen>
   final AudioPlayer _audioPlayer = AudioPlayer();
   Timer? _locationLoopTimer;
   Timer? _vibrationTimer;
+  Timer? _graceTimer;
+
+  bool _inGracePeriod = false;
+  int _gracePeriodCountdown = 5;
 
   @override
   void initState() {
@@ -79,6 +83,7 @@ class _SOSScreenState extends State<SOSScreen>
     _volumeResetTimer?.cancel();
     _locationLoopTimer?.cancel();
     _vibrationTimer?.cancel();
+    _graceTimer?.cancel();
     _pulseController.dispose();
     _audioPlayer.dispose();
     Vibration.cancel();
@@ -139,8 +144,10 @@ class _SOSScreenState extends State<SOSScreen>
   Future<void> _activateSOS() async {
     setState(() {
       _sosActivated = true;
-      _isSending = true;
-      _statusMessage = 'Fetching your location...';
+      _isSending = false;
+      _inGracePeriod = true;
+      _gracePeriodCountdown = 5;
+      _statusMessage = 'Alerting contacts in $_gracePeriodCountdown seconds...';
     });
     HapticFeedback.heavyImpact();
 
@@ -168,6 +175,28 @@ class _SOSScreenState extends State<SOSScreen>
     Future.delayed(const Duration(seconds: 2), () {
       _flashTimer?.cancel();
       if (mounted) setState(() => _flashOn = false);
+    });
+
+    _graceTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) { timer.cancel(); return; }
+      if (_gracePeriodCountdown > 1) {
+        setState(() {
+          _gracePeriodCountdown--;
+          _statusMessage = 'Alerting contacts in $_gracePeriodCountdown seconds...';
+        });
+      } else {
+        timer.cancel();
+        _executeSOSPayload();
+      }
+    });
+  }
+
+  Future<void> _executeSOSPayload() async {
+    if (!mounted) return;
+    setState(() {
+      _inGracePeriod = false;
+      _isSending = true;
+      _statusMessage = 'Fetching your location...';
     });
 
     // Check SMS permission
@@ -266,6 +295,12 @@ class _SOSScreenState extends State<SOSScreen>
   }
 
   Future<void> _sendSafeNow() async {
+    if (_inGracePeriod) {
+      _resetSOS();
+      if (mounted) showAppSnackBar(context, 'SOS cancelled before sending.');
+      return;
+    }
+
     setState(() {
       _isSending = true;
       _statusMessage = 'Sending "I am safe" message...';
@@ -316,11 +351,13 @@ class _SOSScreenState extends State<SOSScreen>
     _flashTimer?.cancel();
     _locationLoopTimer?.cancel();
     _vibrationTimer?.cancel();
+    _graceTimer?.cancel();
     _audioPlayer.stop();
     Vibration.cancel();
     
     setState(() {
       _sosActivated = false;
+      _inGracePeriod = false;
       _isHolding = false;
       _holdProgress = 0.0;
       _countdown = 3;
@@ -572,11 +609,22 @@ class _SOSScreenState extends State<SOSScreen>
                             textAlign: TextAlign.center,
                             style: GoogleFonts.poppins(
                               color: Colors.white,
-                              fontSize: 28,
+                              fontSize: _inGracePeriod ? 22 : 28,
                               fontWeight: FontWeight.w800,
                               height: 1.1,
                             ),
                           ),
+                          if (_inGracePeriod) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '$_gracePeriodCountdown',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -588,12 +636,12 @@ class _SOSScreenState extends State<SOSScreen>
                       _statusMessage,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
-                          fontSize: 15, color: AppColors.textLight, height: 1.5),
+                          fontSize: 15, color: _inGracePeriod ? Colors.white : AppColors.textLight, height: 1.5),
                     ),
                   ),
                   const SizedBox(height: 48),
                   GradientButton(
-                    text: 'Cancel SOS / I am safe',
+                    text: _inGracePeriod ? 'Cancel SOS Now' : 'Cancel SOS / I am safe',
                     icon: Icons.cancel_rounded,
                     onPressed: _sendSafeNow,
                     width: 250,
