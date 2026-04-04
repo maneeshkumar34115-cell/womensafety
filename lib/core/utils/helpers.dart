@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_strings.dart';
 
 // ─── Solid Action Button ────────────────────────────────────────────────────
 class GradientButton extends StatelessWidget {
@@ -214,25 +215,25 @@ class FrostedBottomNavBar extends StatelessWidget {
                 children: [
                   _NavItem(
                     icon: Icons.home_rounded,
-                    label: 'Home',
+                    label: AppStrings.tr(context, AppStrings.navHome),
                     isSelected: currentIndex == 0,
                     onTap: () => onTap(0),
                   ),
                   _NavItem(
                     icon: Icons.location_on_rounded,
-                    label: 'Track',
+                    label: AppStrings.tr(context, AppStrings.navTrack),
                     isSelected: currentIndex == 1,
                     onTap: () => onTap(1),
                   ),
                   _NavItem(
                     icon: Icons.contacts_rounded,
-                    label: 'Contacts',
+                    label: AppStrings.tr(context, AppStrings.navContacts),
                     isSelected: currentIndex == 2,
                     onTap: () => onTap(2),
                   ),
                   _NavItem(
                     icon: Icons.person_rounded,
-                    label: 'Profile',
+                    label: AppStrings.tr(context, AppStrings.navProfile),
                     isSelected: currentIndex == 3,
                     onTap: () => onTap(3),
                   ),

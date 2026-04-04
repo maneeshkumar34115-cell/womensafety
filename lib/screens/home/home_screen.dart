@@ -2,6 +2,7 @@
 /// SafeGuardHer - Home Dashboard Screen
 /// Central hub with welcome greeting, safety status card,
 /// 8 action grid tiles, frosted glass bottom navigation, and haptic feedback.
+/// All strings are now localized via AppStrings.tr(context, ...).
 library;
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/helpers.dart';
 import '../../services/auth_service.dart';
+import '../../providers/settings_provider.dart';
 import '../sos/sos_screen.dart';
 import '../contacts/contacts_screen.dart';
 import '../live_location/live_location_screen.dart';
@@ -36,6 +38,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch SettingsProvider so the entire screen rebuilds on language change
+    context.watch<SettingsProvider>();
+
     final pages = [
       const _DashboardBody(),
       const LiveLocationScreen(),
@@ -96,6 +101,9 @@ class _DashboardBody extends StatelessWidget {
     final auth = Provider.of<AuthService>(context);
     final firstName = auth.currentUser?.fullName.split(' ').first ?? 'User';
 
+    // Shorthand for localized strings
+    String t(String key) => AppStrings.tr(context, key);
+
     return SafeArea(
       bottom: false,
       child: SingleChildScrollView(
@@ -111,7 +119,7 @@ class _DashboardBody extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppStrings.welcomeBack,
+                      t(AppStrings.welcomeBack),
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         color: AppColors.textLight,
@@ -212,7 +220,7 @@ class _DashboardBody extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              AppStrings.safetyStatus,
+                              t(AppStrings.safetyStatus),
                               style: GoogleFonts.poppins(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -221,7 +229,7 @@ class _DashboardBody extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'All safety features active',
+                              t(AppStrings.allSafetyFeaturesActive),
                               style: GoogleFonts.poppins(
                                 color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 12,
@@ -264,7 +272,7 @@ class _DashboardBody extends StatelessWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Power Button SOS: Active',
+                            t(AppStrings.powerButtonSOS),
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontSize: 12,
@@ -298,7 +306,7 @@ class _DashboardBody extends StatelessWidget {
 
             // Quick Actions heading
             Text(
-              'Quick Actions',
+              t(AppStrings.quickActions),
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -318,56 +326,56 @@ class _DashboardBody extends StatelessWidget {
               children: [
                 _ActionTile(
                   icon: Icons.sos_rounded,
-                  label: AppStrings.sos,
+                  label: t(AppStrings.sos),
                   color: AppColors.danger,
                   onTap: () =>
                       _navigateTo(context, const SOSScreen()),
                 ),
                 _ActionTile(
                   icon: Icons.share_location_rounded,
-                  label: AppStrings.shareLocation,
+                  label: t(AppStrings.shareLocation),
                   color: const Color(0xFF1565C0),
                   onTap: () => _navigateTo(
                       context, const LiveLocationScreen()),
                 ),
                 _ActionTile(
                   icon: Icons.phone_in_talk_rounded,
-                  label: AppStrings.fakeCall,
+                  label: t(AppStrings.fakeCall),
                   color: const Color(0xFFE65100),
                   onTap: () => _navigateTo(
                       context, const FakeCallScreen()),
                 ),
                 _ActionTile(
                   icon: Icons.lightbulb_outline_rounded,
-                  label: AppStrings.safetyTips,
+                  label: t(AppStrings.safetyTips),
                   color: const Color(0xFF00695C),
                   onTap: () => _navigateTo(
                       context, const SafetyTipsScreen()),
                 ),
                 _ActionTile(
                   icon: Icons.contacts_rounded,
-                  label: AppStrings.contacts,
+                  label: t(AppStrings.contacts),
                   color: AppColors.secondary,
                   onTap: () => _navigateTo(
                       context, const ContactsScreen()),
                 ),
                 _ActionTile(
                   icon: Icons.route_rounded,
-                  label: AppStrings.trackJourney,
+                  label: t(AppStrings.trackJourney),
                   color: const Color(0xFF283593),
                   onTap: () => _navigateTo(
                       context, const LiveLocationScreen()),
                 ),
                 _ActionTile(
                   icon: Icons.local_hospital_rounded,
-                  label: AppStrings.nearbyHelp,
+                  label: t(AppStrings.nearbyHelp),
                   color: const Color(0xFF2E7D32),
                   onTap: () => _navigateTo(
                       context, const NearbyHelpScreen()),
                 ),
                 _ActionTile(
                   icon: Icons.report_problem_rounded,
-                  label: AppStrings.reportIncident,
+                  label: t(AppStrings.reportIncident),
                   color: Colors.redAccent,
                   onTap: () => _navigateTo(
                       context, const ReportIncidentScreen()),
@@ -379,7 +387,7 @@ class _DashboardBody extends StatelessWidget {
 
             // Emergency helpline quick access
             Text(
-              'Emergency Helplines',
+              t(AppStrings.emergencyHelplines),
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -388,29 +396,29 @@ class _DashboardBody extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            const _HelplineCard(
-              name: 'Police',
+            _HelplineCard(
+              name: t(AppStrings.police),
               number: '100',
               icon: Icons.local_police_rounded,
-              color: Color(0xFF1565C0),
+              color: const Color(0xFF1565C0),
             ),
-            const _HelplineCard(
-              name: 'Women Helpline',
+            _HelplineCard(
+              name: t(AppStrings.womenHelpline),
               number: '1091',
               icon: Icons.support_agent_rounded,
               color: AppColors.primary,
             ),
-            const _HelplineCard(
-              name: 'Emergency',
+            _HelplineCard(
+              name: t(AppStrings.emergency),
               number: '112',
               icon: Icons.emergency_rounded,
               color: AppColors.danger,
             ),
-            const _HelplineCard(
-              name: 'Ambulance',
+            _HelplineCard(
+              name: t(AppStrings.ambulance),
               number: '102',
               icon: Icons.local_hospital_rounded,
-              color: Color(0xFF2E7D32),
+              color: const Color(0xFF2E7D32),
             ),
             const SizedBox(height: 20),
           ],
@@ -538,7 +546,7 @@ class _HelplineCard extends StatelessWidget {
           } else {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Calling $number...')),
+                SnackBar(content: Text('${AppStrings.tr(context, AppStrings.calling)} $number...')),
               );
             }
           }

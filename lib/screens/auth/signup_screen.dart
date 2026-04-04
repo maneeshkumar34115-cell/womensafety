@@ -12,6 +12,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/helpers.dart';
 import '../../services/auth_service.dart';
+import '../../providers/settings_provider.dart';
 import '../home/home_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -95,9 +96,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     final authService = Provider.of<AuthService>(context);
     final password = _passwordController.text;
     final strength = _passwordStrength(password);
+
+    String t(String key) => AppStrings.tr(context, key);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -122,7 +126,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // Header
                   Text(
-                    AppStrings.createAccount,
+                    t(AppStrings.createAccount),
                     style: GoogleFonts.poppins(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -141,7 +145,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // Full Name
                   CustomTextField(
-                    label: AppStrings.fullName,
+                    label: t(AppStrings.fullName),
                     hint: 'Priya Sharma',
                     prefixIcon: Icons.person_outline,
                     controller: _nameController,
@@ -155,7 +159,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // Email
                   CustomTextField(
-                    label: AppStrings.email,
+                    label: t(AppStrings.email),
                     hint: 'priya@example.com',
                     prefixIcon: Icons.email_outlined,
                     controller: _emailController,
@@ -172,7 +176,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // Phone
                   CustomTextField(
-                    label: AppStrings.phone,
+                    label: t(AppStrings.phone),
                     hint: '+91 98765 43210',
                     prefixIcon: Icons.phone_outlined,
                     controller: _phoneController,
@@ -189,7 +193,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // Password
                   CustomTextField(
-                    label: AppStrings.password,
+                    label: t(AppStrings.password),
                     hint: 'Create a strong password',
                     prefixIcon: Icons.lock_outline,
                     obscureText: _obscurePassword,
@@ -244,7 +248,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // Confirm Password
                   CustomTextField(
-                    label: AppStrings.confirmPassword,
+                    label: t(AppStrings.confirmPassword),
                     hint: 'Re-enter your password',
                     prefixIcon: Icons.lock_outline,
                     obscureText: _obscureConfirm,
@@ -272,7 +276,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // Sign up button
                   GradientButton(
-                    text: AppStrings.signup,
+                    text: t(AppStrings.signup),
                     icon: Icons.person_add_rounded,
                     isLoading: authService.isLoading,
                     onPressed: _handleSignup,
@@ -285,7 +289,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          AppStrings.haveAccount,
+                          t(AppStrings.haveAccount),
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             color: AppColors.textLight,
@@ -294,7 +298,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         GestureDetector(
                           onTap: () => Navigator.pop(context),
                           child: Text(
-                            AppStrings.login,
+                            t(AppStrings.login),
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               color: AppColors.primary,

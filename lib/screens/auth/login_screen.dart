@@ -12,6 +12,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/helpers.dart';
 import '../../services/auth_service.dart';
+import '../../providers/settings_provider.dart';
 import '../home/home_screen.dart';
 import 'signup_screen.dart';
 
@@ -61,7 +62,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     final authService = Provider.of<AuthService>(context);
+
+    String t(String key) => AppStrings.tr(context, key);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -127,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Email
                   CustomTextField(
-                    label: AppStrings.email,
+                    label: t(AppStrings.email),
                     hint: 'priya@example.com',
                     prefixIcon: Icons.email_outlined,
                     controller: _emailController,
@@ -147,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Password
                   CustomTextField(
-                    label: AppStrings.password,
+                    label: t(AppStrings.password),
                     hint: '••••••••',
                     prefixIcon: Icons.lock_outline,
                     obscureText: _obscurePassword,
@@ -206,7 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               context, 'Reset link sent to your email');
                         },
                         child: Text(
-                          AppStrings.forgotPassword,
+                          t(AppStrings.forgotPassword),
                           style: GoogleFonts.poppins(
                             fontSize: 13,
                             color: AppColors.primary,
@@ -220,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Login button
                   GradientButton(
-                    text: AppStrings.login,
+                    text: t(AppStrings.login),
                     icon: Icons.login_rounded,
                     isLoading: authService.isLoading,
                     onPressed: _handleLogin,
@@ -233,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          AppStrings.noAccount,
+                          t(AppStrings.noAccount),
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             color: AppColors.textLight,
@@ -247,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             );
                           },
                           child: Text(
-                            AppStrings.signup,
+                            t(AppStrings.signup),
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               color: AppColors.primary,

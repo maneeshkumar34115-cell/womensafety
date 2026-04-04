@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../services/auth_service.dart';
+import '../../providers/settings_provider.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../home/home_screen.dart';
 
@@ -90,6 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -143,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen>
             FadeTransition(
               opacity: _fadeAnimation,
               child: Text(
-                AppStrings.tagline,
+                AppStrings.tr(context, AppStrings.tagline),
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   color: Colors.white.withValues(alpha: 0.85),

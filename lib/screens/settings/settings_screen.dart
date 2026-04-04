@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_strings.dart';
 import '../../core/utils/helpers.dart';
 import '../../providers/settings_provider.dart';
 
@@ -20,41 +21,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final Map<String, String> _hi = {
-    'Settings': 'सेटिंग्स',
-    'Notifications': 'सूचनाएं',
-    'Push Notifications': 'पुश सूचनाएं',
-    'Receive safety alerts and reminders': 'सुरक्षा अलर्ट और अनुस्मारक प्राप्त करें',
-    'Notifications enabled': 'सूचनाएं सक्षम की गईं',
-    'Notifications disabled': 'सूचनाएं अक्षम की गईं',
-    'SOS Settings': 'SOS सेटिंग्स',
-    'Vibration on SOS': 'SOS पर कंपन',
-    'Vibrate when SOS is triggered': 'SOS ट्रिगर होने पर कंपन करें',
-    'Siren Sound on SOS': 'SOS पर सायरन ध्वनि',
-    'Play loud siren when SOS activates': 'SOS सक्रिय होने पर तेज़ सायरन बजाएं',
-    'Language': 'भाषा',
-    'App Language': 'ऐप की भाषा',
-    'English': 'English',
-    'Hindi': 'हिंदी',
-    'Language changed to Hindi': 'भाषा हिंदी में बदल दी गई है',
-    'Language changed to English': 'Language changed to English',
-    'Appearance': 'दिखावट',
-    'Dark Mode': 'डार्क मोड',
-    'Dark mode enabled': 'डार्क मोड सक्षम किया गया',
-    'Light mode enabled': 'लाइट मोड सक्षम किया गया',
-    'Reduce eye strain at night': 'रात में आंखों का तनाव कम करें',
-    'About': 'के बारे में',
-    'App Version': 'ऐप संस्करण',
-    'Terms of Service': 'सेवा की शर्तें',
-    'Privacy Policy': 'गोपनीयता नीति',
-    'Rate this App': 'इस ऐप को रेट करें',
-    'Thanks for rating us!': 'हमें रेट करने के लिए धन्यवाद!',
-    'Your Safety, Our Priority': 'आपकी सुरक्षा, हमारी प्राथमिकता',
-  };
-
   String tr(BuildContext context, String text) {
-    final isHi = context.watch<SettingsProvider>().isHindi;
-    return isHi ? (_hi[text] ?? text) : text;
+    return AppStrings.tr(context, text);
   }
 
   @override
