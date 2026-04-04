@@ -12,6 +12,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:vibration/vibration.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/helpers.dart';
@@ -19,6 +21,7 @@ import '../../services/location_service.dart';
 import '../../services/contacts_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/sms_service.dart';
+import '../../providers/settings_provider.dart';
 
 class SOSScreen extends StatefulWidget {
   const SOSScreen({super.key});
@@ -45,6 +48,10 @@ class _SOSScreenState extends State<SOSScreen>
   int _volumeDownCount = 0;
   Timer? _volumeResetTimer;
 
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  Timer? _locationLoopTimer;
+  Timer? _vibrationTimer;
+
   @override
   void initState() {
     super.initState();
@@ -70,7 +77,11 @@ class _SOSScreenState extends State<SOSScreen>
     _holdTimer?.cancel();
     _flashTimer?.cancel();
     _volumeResetTimer?.cancel();
+    _locationLoopTimer?.cancel();
+    _vibrationTimer?.cancel();
     _pulseController.dispose();
+    _audioPlayer.dispose();
+    Vibration.cancel();
     super.dispose();
   }
 
@@ -132,6 +143,22 @@ class _SOSScreenState extends State<SOSScreen>
       _statusMessage = 'Fetching your location...';
     });
     HapticFeedback.heavyImpact();
+
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+
+    // Audio and Vibration
+    if (settings.sosSiren) {
+      _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      _audioPlayer.play(AssetSource('sounds/siren.mp3'));
+    }
+    
+    if (settings.sosVibration) {
+      _vibrationTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+        if (await Vibration.hasVibrator() ?? false) {
+          Vibration.vibrate(duration: 1000);
+        }
+      });
+    }
 
     // Flash screen
     _flashTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
@@ -225,6 +252,17 @@ class _SOSScreenState extends State<SOSScreen>
             : 'SOS triggered! Add contacts for SMS alerts.',
       );
     }
+    
+    // Start continuous location sharing loop
+    _locationLoopTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
+      final pos = await Provider.of<LocationService>(context, listen: false).getCurrentLocation();
+      if (pos != null) {
+        final locMessage = '🆘 Live Update: $userName is at https://maps.google.com/?q=${pos.latitude},${pos.longitude}';
+        for (var contact in contacts) {
+          SmsService.sendSingleSMS(phone: contact.phone, message: locMessage);
+        }
+      }
+    });
   }
 
   Future<void> _sendSafeNow() async {
@@ -276,6 +314,11 @@ class _SOSScreenState extends State<SOSScreen>
 
   void _resetSOS() {
     _flashTimer?.cancel();
+    _locationLoopTimer?.cancel();
+    _vibrationTimer?.cancel();
+    _audioPlayer.stop();
+    Vibration.cancel();
+    
     setState(() {
       _sosActivated = false;
       _isHolding = false;
@@ -420,8 +463,9 @@ class _SOSScreenState extends State<SOSScreen>
                 ScaleTransition(
                   scale: _pulseAnimation,
                   child: GestureDetector(
-                    onLongPressStart: (_) => _startHold(),
-                    onLongPressEnd: (_) => _cancelHold(),
+                    onTapDown: (_) => _startHold(),
+                    onTapUp: (_) => _cancelHold(),
+                    onTapCancel: () => _cancelHold(),
                     child: Container(
                       width: 200,
                       height: 200,
@@ -501,18 +545,43 @@ class _SOSScreenState extends State<SOSScreen>
                     ),
                   ),
                 ] else ...[
-                  const Icon(Icons.check_circle_rounded,
-                      color: AppColors.success, size: 80),
-                  const SizedBox(height: 24),
-                  Text(
-                    'SOS Activated!',
-                    style: GoogleFonts.poppins(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.danger,
+                  // Pulse active state
+                  ScaleTransition(
+                    scale: _pulseAnimation,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.danger.withValues(alpha: 0.5),
+                            blurRadius: 30,
+                            spreadRadius: 8,
+                          ),
+                        ],
+                        color: AppColors.danger,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.sos_rounded, color: Colors.white, size: 48),
+                          const SizedBox(height: 8),
+                          Text(
+                            'SOS\nACTIVE',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 32),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 40),
                     child: Text(
@@ -522,12 +591,12 @@ class _SOSScreenState extends State<SOSScreen>
                           fontSize: 15, color: AppColors.textLight, height: 1.5),
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 48),
                   GradientButton(
-                    text: 'I am safe now',
-                    icon: Icons.shield_rounded,
+                    text: 'Cancel SOS / I am safe',
+                    icon: Icons.cancel_rounded,
                     onPressed: _sendSafeNow,
-                    width: 220,
+                    width: 250,
                   ),
                 ],
               ],

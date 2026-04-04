@@ -29,8 +29,10 @@ dependencies:
   flutter_map: any
   latlong2: ^0.9.1
 
-  # Permissions
+  # Permissions & Features
   permission_handler: ^11.4.0
+  vibration: ^1.9.0
+  background_sms: ^0.0.4
 
   # Phone calls replacing telephony
   flutter_phone_direct_caller: ^2.1.1

@@ -1,32 +1,41 @@
-// ignore_for_file: use_build_context_synchronously
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:background_sms/background_sms.dart';
 import '../models/emergency_contact.dart';
 
 class SmsService {
-  /// Send emergency SMS to all contacts with custom message
-  /// Since telephony was removed, we use url_launcher to open SMS app
+  /// Send emergency SMS to all contacts dynamically
   static Future<List<String>> sendEmergencySMS({
     required List<EmergencyContact> contacts,
     required String message,
   }) async {
     final List<String> sentTo = [];
 
-    // Combine all phone numbers into one string separated by comma
-    final phones = contacts.map((c) => c.phone.replaceAll(RegExp(r'\s+'), '')).where((p) => p.isNotEmpty).join(',');
-    
-    if (phones.isNotEmpty) {
-      final uri = Uri.parse('sms:$phones?body=${Uri.encodeComponent(message)}');
-      try {
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri);
-          sentTo.addAll(contacts.map((c) => c.name));
+    // Directly send SMS via background_sms
+    for (var contact in contacts) {
+      final phone = contact.phone.replaceAll(RegExp(r'\s+'), '');
+      if (phone.isNotEmpty) {
+        try {
+          SmsStatus result = await BackgroundSms.sendMessage(
+              phoneNumber: phone, message: message);
+          if (result == SmsStatus.sent) {
+            sentTo.add(contact.name);
+          }
+        } catch (_) {
+          // Fallback to url_launcher if background_sms fails
+          try {
+            final uri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(message)}');
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri);
+              sentTo.add(contact.name);
+            }
+          } catch (_) {}
         }
-      } catch (_) {}
+      }
     }
 
-    // Attempt to make a direct phone call to the first available contact as backup
+    // Call first available
     if (contacts.isNotEmpty) {
       final firstPhone = contacts.first.phone.replaceAll(RegExp(r'\s+'), '');
       if (firstPhone.isNotEmpty) {
@@ -60,6 +69,11 @@ class SmsService {
   }) async {
     try {
       final cleanPhone = phone.replaceAll(RegExp(r'\s+'), '');
+      
+      SmsStatus result = await BackgroundSms.sendMessage(
+              phoneNumber: cleanPhone, message: message);
+      if (result == SmsStatus.sent) return true;
+      
       final uri = Uri.parse('sms:$cleanPhone?body=${Uri.encodeComponent(message)}');
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
